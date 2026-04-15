@@ -1,0 +1,11 @@
+//
+// Created by karel on 15.04.2026.
+//
+
+#ifndef IOT_PROJEKT_VJEZDOVA_BRANA_CONFIG_H
+#define IOT_PROJEKT_VJEZDOVA_BRANA_CONFIG_H
+
+#define NODE_ID "6767"
+
+
+#endif //IOT_PROJEKT_VJEZDOVA_BRANA_CONFIG_H

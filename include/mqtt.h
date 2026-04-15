@@ -1,0 +1,8 @@
+//
+// Created by karel on 15.04.2026.
+//
+
+#ifndef IOT_PROJEKT_VJEZDOVA_BRANA_MQTT_H
+#define IOT_PROJEKT_VJEZDOVA_BRANA_MQTT_H
+
+#endif //IOT_PROJEKT_VJEZDOVA_BRANA_MQTT_H
