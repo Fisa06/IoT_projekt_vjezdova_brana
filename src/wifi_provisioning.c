@@ -18,6 +18,8 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 
+#include "secrets.h"
+#include "wifi_provisioning.h"
 #include "wifi_provisioning/manager.h"
 #include "wifi_provisioning/scheme_softap.h"
 
@@ -26,6 +28,9 @@ static const char *TAG = "WIFI_PROV";
 /* Signal Wi-Fi events on this event-group */
 const int WIFI_CONNECTED_EVENT = BIT0;
 static EventGroupHandle_t wifi_event_group;
+static bool event_handlers_registered;
+static bool netifs_created;
+static bool wifi_initialized;
 
 /* Event handler for catching system events */
 static void event_handler(void* arg, esp_event_base_t event_base,
@@ -115,6 +120,66 @@ static void wifi_init_sta(void)
     ESP_ERROR_CHECK(esp_wifi_start());
 }
 
+static void init_nvs_flash(void)
+{
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+}
+
+static void init_network_stack(void)
+{
+    esp_err_t ret = esp_netif_init();
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        ESP_ERROR_CHECK(ret);
+    }
+
+    ret = esp_event_loop_create_default();
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
+        ESP_ERROR_CHECK(ret);
+    }
+
+    if (wifi_event_group == NULL) {
+        wifi_event_group = xEventGroupCreate();
+        configASSERT(wifi_event_group != NULL);
+    }
+
+    if (!event_handlers_registered) {
+        ESP_ERROR_CHECK(esp_event_handler_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
+        ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
+        ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
+        event_handlers_registered = true;
+    }
+}
+
+static void init_wifi_driver(void)
+{
+    if (!netifs_created) {
+        esp_netif_create_default_wifi_ap();
+        esp_netif_create_default_wifi_sta();
+        netifs_created = true;
+    }
+
+    if (!wifi_initialized) {
+        wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+        ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+        wifi_initialized = true;
+    }
+}
+
+static void init_provisioning_manager(void)
+{
+    wifi_prov_mgr_config_t config = {
+        .scheme = wifi_prov_scheme_softap,
+        .scheme_event_handler = WIFI_PROV_EVENT_HANDLER_NONE
+    };
+
+    ESP_ERROR_CHECK(wifi_prov_mgr_init(config));
+}
+
 static void get_device_service_name(char *service_name, size_t max)
 {
     uint8_t eth_mac[6];
@@ -146,58 +211,10 @@ esp_err_t custom_prov_data_handler(uint32_t session_id, const uint8_t *inbuf, ss
 
 void wifi_provisioning_start(void)
 {
-    /* Initialize NVS partition */
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        /* NVS partition was truncated
-         * and needs to be erased */
-        ESP_ERROR_CHECK(nvs_flash_erase());
-
-        /* Retry nvs_flash_init */
-        ESP_ERROR_CHECK(nvs_flash_init());
-    }
-
-    /* Initialize TCP/IP */
-    ESP_ERROR_CHECK(esp_netif_init());
-
-    /* Initialize the event loop */
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    wifi_event_group = xEventGroupCreate();
-
-    /* Register our event handler for Wi-Fi, IP and Provisioning related events */
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_PROV_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID, &event_handler, NULL));
-
-    /* Initialize Wi-Fi including netif with default config */
-    esp_netif_create_default_wifi_ap();
-    esp_netif_create_default_wifi_sta();
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-    /* Configuration for the provisioning manager */
-    wifi_prov_mgr_config_t config = {
-        /* What is the Provisioning Scheme that we want ?
-         * wifi_prov_scheme_softap uses SoftAP to provide provisioning
-         * wifi_prov_scheme_ble uses BLE to provide provisioning
-         */
-        .scheme = wifi_prov_scheme_softap,
-
-        /* Any default scheme specific event handler that you would
-         * like to choose. Since our example application requires
-         * neither BT nor BLE, we can choose to release the associated
-         * memory once provisioning is complete, or not needed
-         * (in case when device is already provisioned). Choosing
-         * appropriate scheme specific event handler allows the manager
-         * to take care of this automatically. This can be set to
-         * WIFI_PROV_EVENT_HANDLER_NONE when using wifi_prov_scheme_ble
-         */
-        .scheme_event_handler = WIFI_PROV_EVENT_HANDLER_NONE
-    };
-
-    /* Initialize provisioning manager with the
-     * configuration parameters set above */
-    ESP_ERROR_CHECK(wifi_prov_mgr_init(config));
+    init_nvs_flash();
+    init_network_stack();
+    init_wifi_driver();
+    init_provisioning_manager();
 
     bool provisioned = false;
     /* Let's find out if the device is provisioned */
@@ -226,7 +243,7 @@ void wifi_provisioning_start(void)
          *      - this should be a string with length > 0
          *      - NULL if not used
          */
-        const char *pop = "abcd1234";
+        const char *pop = WIFI_PROV_POP;
 
         /* What is the service key (could be NULL)
          * This translates to :
@@ -271,9 +288,27 @@ void wifi_provisioning_start(void)
     xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_EVENT, false, true, portMAX_DELAY);
 }
 
+void wifi_provisioning_reset(void)
+{
+    init_nvs_flash();
+    init_network_stack();
+    init_wifi_driver();
+    init_provisioning_manager();
+
+    ESP_LOGI(TAG, "Resetting saved Wi-Fi provisioning credentials");
+    ESP_ERROR_CHECK(wifi_prov_mgr_reset_provisioning());
+    wifi_prov_mgr_deinit();
+}
+
 bool wifi_is_provisioned(void)
 {
+    init_nvs_flash();
+    init_network_stack();
+    init_wifi_driver();
+    init_provisioning_manager();
+
     bool provisioned = false;
-    wifi_prov_mgr_is_provisioned(&provisioned);
+    ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
+    wifi_prov_mgr_deinit();
     return provisioned;
 }

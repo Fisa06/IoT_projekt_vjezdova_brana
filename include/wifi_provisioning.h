@@ -17,6 +17,14 @@
 void wifi_provisioning_start(void);
 
 /**
+ * @brief Clear saved Wi-Fi provisioning credentials
+ *
+ * After calling this function, the next call to wifi_provisioning_start()
+ * will enter provisioning mode until new credentials are stored.
+ */
+void wifi_provisioning_reset(void);
+
+/**
  * @brief Check if device is already provisioned
  *
  * @return true if device has saved WiFi credentials, false otherwise
