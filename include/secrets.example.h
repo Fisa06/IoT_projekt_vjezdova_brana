@@ -1,0 +1,10 @@
+#ifndef IOT_PROJEKT_VJEZDOVA_BRANA_SECRETS_EXAMPLE_H
+#define IOT_PROJEKT_VJEZDOVA_BRANA_SECRETS_EXAMPLE_H
+
+#define WIFI_PROV_POP "replace-me"
+#define MQTT_BROKER_URI "mqtts://example.com"
+#define MQTT_BROKER_PORT 8883
+#define MQTT_USERNAME "replace-me"
+#define MQTT_PASSWORD "replace-me"
+
+#endif //IOT_PROJEKT_VJEZDOVA_BRANA_SECRETS_EXAMPLE_H
