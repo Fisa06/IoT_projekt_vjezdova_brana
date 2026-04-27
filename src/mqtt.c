@@ -166,6 +166,7 @@ static void mqtt_publish_device_info(void)
 
     if (wifi_status[0] == 'c') {
         cJSON_AddNumberToObject(json, "rssi", ap_info.rssi);
+        cJSON_AddStringToObject(json, "ssid", (const char *) ap_info.ssid);
     }
 
     mqtt_publish_json(MQTT_DEVICE_INFO_TOPIC, json, 1, 1);

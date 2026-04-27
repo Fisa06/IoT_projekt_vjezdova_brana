@@ -2,3 +2,8 @@
 .vscode
 build
 sdk*
+
+# Local secrets — never commit
+web/public/config.json
+web/.env
+include/secrets.h
