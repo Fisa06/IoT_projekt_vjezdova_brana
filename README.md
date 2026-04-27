@@ -5,7 +5,7 @@ ESP32-C6 firmware built with PlatformIO/ESP-IDF plus a small static web dashboar
 ## Architecture
 
 ```text
-+-------------+   MQTT/TLS   +-------------+   MQTT over WSS   +------------------+
++-------------+   MQTT/TLS   +-------------+   MQTT over WSS    +------------------+
 | ESP32-C6    | -----------> | MQTT broker | <----------------> | Web dashboard    |
 | gate unit   | <----------- |             |                    | phone / desktop  |
 +-------------+              +-------------+                    +------------------+
