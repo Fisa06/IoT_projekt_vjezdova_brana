@@ -194,6 +194,36 @@ static gate_keeper_command_t mqtt_parse_gate_command(const char *command, bool *
     return GATE_KEEPER_COMMAND_STOP;
 }
 
+static const char *mqtt_command_rejection_message(gate_keeper_command_t command)
+{
+    gate_keeper_status_t status = gate_keeper_get_status();
+
+    switch (command) {
+        case GATE_KEEPER_COMMAND_OPEN:
+            if (status == GATE_KEEPER_STATUS_OPEN) {
+                return "gate already open";
+            }
+            if (status == GATE_KEEPER_STATUS_OPENING) {
+                return "gate already opening";
+            }
+            break;
+        case GATE_KEEPER_COMMAND_CLOSE:
+            if (status == GATE_KEEPER_STATUS_CLOSED) {
+                return "gate already closed";
+            }
+            if (status == GATE_KEEPER_STATUS_CLOSING) {
+                return "gate already closing";
+            }
+            break;
+        case GATE_KEEPER_COMMAND_STOP:
+            return "stop command rejected";
+        default:
+            return "unknown command";
+    }
+
+    return "command rejected";
+}
+
 static void mqtt_handle_command_message(const char *payload, int payload_len)
 {
     cJSON *json;
@@ -232,12 +262,15 @@ static void mqtt_handle_command_message(const char *payload, int payload_len)
 
     err = gate_keeper_send_command(command);
     if (err != ESP_OK) {
-        mqtt_publish_reply(id_item->valuestring, "error", esp_err_to_name(err));
+        const char *message = err == ESP_ERR_INVALID_STATE
+                                  ? mqtt_command_rejection_message(command)
+                                  : esp_err_to_name(err);
+        mqtt_publish_reply(id_item->valuestring, "error", message);
         cJSON_Delete(json);
         return;
     }
 
-    mqtt_publish_reply(id_item->valuestring, "ok", NULL);
+    mqtt_publish_reply(id_item->valuestring, "accepted", NULL);
     cJSON_Delete(json);
 }
 

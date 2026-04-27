@@ -13,7 +13,7 @@
 #include "wifi_provisioning.h"
 
 static const char *TAG = "MAIN";
-static const gpio_num_t WIFI_RESET_BUTTON_GPIO = GPIO_NUM_20;
+static const gpio_num_t WIFI_RESET_BUTTON_GPIO = GPIO_NUM_13;
 
 static void wifi_reset_button_init(void)
 {
@@ -32,7 +32,6 @@ void app_main() {
     ESP_ERROR_CHECK(ledc_init());
     ESP_ERROR_CHECK(gate_keeper_init());
     wifi_reset_button_init();
-
     if (gpio_get_level(WIFI_RESET_BUTTON_GPIO) == 0) {
         ESP_LOGI(TAG, "GPIO20 held low at boot, clearing saved Wi-Fi credentials");
         wifi_provisioning_reset();

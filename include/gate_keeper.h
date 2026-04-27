@@ -18,6 +18,7 @@ typedef enum {
 } gate_keeper_status_t;
 
 esp_err_t gate_keeper_init(void);
+esp_err_t gate_keeper_validate_command(gate_keeper_command_t command);
 esp_err_t gate_keeper_send_command(gate_keeper_command_t command);
 gate_keeper_status_t gate_keeper_get_status(void);
 

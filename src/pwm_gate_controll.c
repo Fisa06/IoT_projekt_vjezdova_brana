@@ -3,7 +3,7 @@
 #include "driver/ledc.h"
 #include "esp_log.h"
 
-#define LEDC_GPIO 19
+#define LEDC_GPIO 15
 #define PWM_FREQUENCY 50
 
 #define DUTY_25_PERCENT 256
