@@ -1,0 +1,8 @@
+services:
+  web:
+    build: ./web
+    image: gate-web
+    container_name: gate-web
+    ports:
+      - "8080:80"
+    restart: unless-stopped

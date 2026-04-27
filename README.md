@@ -17,13 +17,19 @@ v Dockeri). Komunikácia cez MQTT-over-WebSocket, žiadny vlastný backend.
 Potrebuješ len **Docker**.
 
 ```sh
+docker compose up -d --build
+```
+
+alebo bez compose:
+
+```sh
 docker build -t gate-web ./web
 docker run -d --rm -p 8080:80 --name gate-web gate-web
 ```
 
 Otvor **http://localhost:8080** (na telefóne `http://<IP-PC>:8080`).
 
-Zastavenie: `docker rm -f gate-web`
+Zastavenie: `docker compose down` (alebo `docker rm -f gate-web`)
 
 ### Nastavenie brokera
 
