@@ -1,0 +1,100 @@
+// Device detail: status, controls, event log.
+import { devices } from '../device-store.js';
+import { mqtt } from '../mqtt-client.js';
+
+export function renderDevice(root, nodeId) {
+    const name = devices.displayName(nodeId);
+    root.innerHTML = `
+        <h2 class="section-title">
+            <a href="#/" style="color:#9aa0ab; text-decoration:none;">&larr; Zariadenia</a>
+            &nbsp;/&nbsp; <span id="title-name">${escapeHtml(name)}</span>
+        </h2>
+        <div class="device-detail">
+            <div class="panel" id="status-panel"></div>
+            <div class="panel">
+                <h3>Ovládanie</h3>
+                <div class="controls">
+                    <button data-cmd="open">Otvoriť</button>
+                    <button data-cmd="stop" class="secondary">Stop</button>
+                    <button data-cmd="close" class="danger">Zavrieť</button>
+                </div>
+                <h3 style="margin-top:18px;">Názov</h3>
+                <form class="rename-form" id="rename-form">
+                    <input type="text" id="name-input" placeholder="Vlastný názov (prázdne = node_id)"
+                           value="${escapeAttr(devices.displayName(nodeId) === nodeId ? '' : devices.displayName(nodeId))}">
+                    <button type="submit">Premenovať</button>
+                </form>
+                <p style="margin-top:14px;">
+                    <button class="secondary" id="btn-remove">Odstrániť zo zoznamu</button>
+                </p>
+            </div>
+            <div class="panel event-log dev-only">
+                <h3>Log udalostí</h3>
+                <ul id="ev-list"></ul>
+            </div>
+        </div>
+    `;
+
+    const repaint = () => {
+        const dev = devices.get(nodeId) || { nodeId, state: null, info: null, events: [], lastSeen: null };
+        root.querySelector('#title-name').textContent = devices.displayName(nodeId);
+        root.querySelector('#status-panel').innerHTML = statusPanel(dev);
+        const evList = root.querySelector('#ev-list');
+        if (evList) {
+            evList.innerHTML = dev.events.length
+                ? dev.events.map(e => `<li>[${new Date(e.ts).toLocaleTimeString()}] ${escapeHtml(e.text)}</li>`).join('')
+                : '<li class="empty">Žiadne udalosti.</li>';
+        }
+    };
+
+    repaint();
+    const unsub = devices.subscribe(repaint);
+    window.addEventListener('hashchange', unsub, { once: true });
+
+    root.querySelectorAll('[data-cmd]').forEach(btn => {
+        btn.addEventListener('click', () => mqtt.sendCommand(nodeId, btn.dataset.cmd));
+    });
+    root.querySelector('#btn-remove').addEventListener('click', () => {
+        devices.remove(nodeId);
+        location.hash = '#/';
+    });
+    root.querySelector('#rename-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        devices.rename(nodeId, root.querySelector('#name-input').value);
+    });
+}
+
+function statusPanel(d) {
+    const state = d.state || 'unknown';
+    const seen  = d.lastSeen ? new Date(d.lastSeen).toLocaleString() : '–';
+    const info  = d.info || {};
+    const wifi  = info.wifi || 'unknown';
+    const ssid  = info.ssid || '';
+    const wifiOnline = wifi === 'connected';
+    const wifiLabel  = wifiOnline
+        ? (ssid ? `Pripojené k „${ssid}“` : 'Pripojené')
+        : (wifi === 'disconnected' ? 'Odpojené' : 'Neznáme');
+    const wifiClass  = wifiOnline ? 'on' : (wifi === 'disconnected' ? 'err' : 'off');
+    return `
+        <h3>Stav</h3>
+        <div class="kv">
+            <div class="k">Stav brány</div><div><span class="state-badge state-${escapeHtml(state)}">${escapeHtml(state)}</span></div>
+            <div class="k">Wi-Fi</div><div><span class="wifi-badge"><span class="dot ${wifiClass}"></span>${escapeHtml(wifiLabel)}</span></div>
+            <div class="k dev-only">node_id</div><div class="dev-only">${escapeHtml(d.nodeId)}</div>
+            <div class="k dev-only">MQTT</div>      <div class="dev-only">${escapeHtml(info.mqtt  ?? '–')}</div>
+            <div class="k dev-only">IP</div>        <div class="dev-only">${escapeHtml(info.ip    ?? '–')}</div>
+            <div class="k dev-only">RSSI</div>      <div class="dev-only">${escapeHtml(info.rssi  ?? '–')}</div>
+            <div class="k">Naposledy</div> <div>${escapeHtml(seen)}</div>
+        </div>
+    `;
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+}
+
+function escapeAttr(s) {
+    return String(s ?? '').replace(/"/g, '&quot;');
+}

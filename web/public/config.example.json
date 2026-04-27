@@ -1,0 +1,5 @@
+{
+  "brokerUrl": "wss://broker.example.com:8084/mqtt",
+  "username":  "your-username",
+  "password":  "your-password"
+}
