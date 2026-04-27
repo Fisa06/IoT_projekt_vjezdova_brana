@@ -166,7 +166,3 @@ docker compose up -d --build
 docker compose down
 ```
 
-## Current Caveats
-
-- The board currently reports a flash-size mismatch warning in PlatformIO on some setups: expected `4MB`, detected `2MB`.
-- The dashboard source still contains some Slovak UI strings; the documentation here is now English, but the UI itself has not been fully translated yet.
