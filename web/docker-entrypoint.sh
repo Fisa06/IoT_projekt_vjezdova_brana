@@ -14,5 +14,3 @@ cat > /usr/share/nginx/html/config.json <<EOF
   "password":  "${MQTT_PASSWORD}"
 }
 EOF
-
-exec nginx -g 'daemon off;'

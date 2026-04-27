@@ -4,5 +4,5 @@ services:
     image: gate-web
     container_name: gate-web
     ports:
-      - "8080:80"
+      - "8082:80"
     restart: unless-stopped
