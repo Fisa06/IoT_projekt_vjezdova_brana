@@ -60,7 +60,7 @@ esp_err_t set_duty_cycle(uint32_t duty_value) {
         return err;
     }
 
-    ESP_LOGI(TAG, "PWM duty cycle set to %d%%", (duty_value * 100) / 1023);
+    ESP_LOGI(TAG, "PWM duty cycle set to %d%%", (int)((duty_value * 100) / 1023));
     return ESP_OK;
 }
 
