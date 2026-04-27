@@ -28,12 +28,13 @@ static void wifi_reset_button_init(void)
     ESP_ERROR_CHECK(gpio_config(&config));
 }
 
+// cppcheck-suppress unusedFunction
 void app_main() {
     ESP_ERROR_CHECK(ledc_init());
     ESP_ERROR_CHECK(gate_keeper_init());
     wifi_reset_button_init();
     if (gpio_get_level(WIFI_RESET_BUTTON_GPIO) == 0) {
-        ESP_LOGI(TAG, "GPIO20 held low at boot, clearing saved Wi-Fi credentials");
+        ESP_LOGI(TAG, "GPIO13 held low at boot, clearing saved Wi-Fi credentials");
         wifi_provisioning_reset();
     }
 

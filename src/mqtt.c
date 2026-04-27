@@ -48,7 +48,7 @@ static const char *gate_keeper_status_to_string(gate_keeper_status_t status)
     }
 }
 
-static bool mqtt_publish_json(const char *topic, cJSON *json, int qos, int retain)
+static bool mqtt_publish_json(const char *topic, const cJSON *json, int qos, int retain)
 {
     char *payload = cJSON_PrintUnformatted(json);
     if (payload == NULL) {
@@ -118,6 +118,7 @@ static void mqtt_publish_gate_status_if_changed(void)
     cJSON_Delete(json);
 }
 
+// cppcheck-suppress unusedFunction
 void mqtt_report_gate_status_change(gate_keeper_status_t status)
 {
     if (status == s_last_published_gate_status) {
@@ -325,6 +326,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     }
 }
 
+// cppcheck-suppress unusedFunction
 esp_err_t mqtt_init(void)
 {
     static bool device_info_task_started;

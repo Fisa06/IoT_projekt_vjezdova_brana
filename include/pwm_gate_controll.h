@@ -7,7 +7,7 @@
 #include "esp_err.h"
 
 /**
- * @brief Initialize LEDC PWM on GPIO pin 19 with 50 Hz frequency
+ * @brief Initialize LEDC PWM on GPIO pin 15 with 50 Hz frequency
  * @details Configures the LEDC timer and channel with 10-bit resolution.
  *          Initial duty cycle is set to 50%.
  * @return ESP_OK on success, error code otherwise
