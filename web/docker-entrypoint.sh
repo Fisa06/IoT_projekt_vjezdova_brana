@@ -7,10 +7,26 @@ set -e
 : "${MQTT_USERNAME:=}"
 : "${MQTT_PASSWORD:=}"
 
+json_escape() {
+  printf '%s' "$1" | awk '
+    BEGIN { ORS = "" }
+    {
+      gsub(/\\/, "\\\\")
+      gsub(/"/, "\\\"")
+      gsub(/\t/, "\\t")
+      gsub(/\r/, "\\r")
+      if (NR > 1) {
+        printf "\\n"
+      }
+      printf "%s", $0
+    }
+  '
+}
+
 cat > /usr/share/nginx/html/config.json <<EOF
 {
-  "brokerUrl": "${MQTT_BROKER_URL}",
-  "username":  "${MQTT_USERNAME}",
-  "password":  "${MQTT_PASSWORD}"
+  "brokerUrl": "$(json_escape "$MQTT_BROKER_URL")",
+  "username":  "$(json_escape "$MQTT_USERNAME")",
+  "password":  "$(json_escape "$MQTT_PASSWORD")"
 }
 EOF

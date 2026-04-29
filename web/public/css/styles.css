@@ -365,6 +365,21 @@ body:not(.dev-mode) .dev-only { display: none !important; }
     font-size: 12px;
 }
 
+.fault-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    background: #2a2c33;
+}
+.fault-ok {
+    color: #4ade80;
+}
+.fault-err {
+    color: #fecaca;
+    background: #7f1d1d;
+}
+
 /* ------- Logs view ------- */
 .logs-header {
     display: flex;

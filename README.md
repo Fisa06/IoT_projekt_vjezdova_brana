@@ -5,6 +5,7 @@ ESP32-C6 firmware for a driveway gate plus a small browser dashboard. The firmwa
 ## Contents
 
 - [Architecture](#architecture)
+- [Technical Solution](#technical-solution)
 - [Repository Layout](#repository-layout)
 - [Hardware Configuration](#hardware-configuration)
 - [Firmware Behavior](#firmware-behavior)
@@ -25,6 +26,16 @@ ESP32-C6 firmware for a driveway gate plus a small browser dashboard. The firmwa
 ```
 
 The ESP32 publishes retained status messages and subscribes to commands for its own node ID. The web dashboard subscribes to wildcard topics, so every gate unit that publishes retained state can appear automatically in the UI.
+
+## Technical Solution
+
+This project uses Wi-Fi as the runtime radio technology. The assignment assumes a family house with 230V power at the gate, no data cable, and no existing outdoor Wi-Fi coverage. Wi-Fi is suitable here because an outdoor access point or mesh node can be added near the gate, the range is enough for a typical driveway installation, and MQTT/TLS support is mature on ESP32-C6. BLE is used only for initial Wi-Fi provisioning, so the user can configure credentials from a phone without temporarily joining an ESP SoftAP network.
+
+The transport/application layer is MQTT over TLS from the ESP32 to the broker. The dashboard uses MQTT over secure WebSockets when running in a browser. MQTT is used because commands, retained state, last-will status, and periodic telemetry map naturally to topics. Gate state is retained so a freshly opened dashboard immediately receives the last known state.
+
+The demo hardware uses the ESP32-C6-DevKitM-1 integrated 2.4 GHz PCB antenna. For an outdoor installation, the recommended additional hardware is an outdoor Wi-Fi AP or mesh node covering the driveway, an isolated 230V AC to low-voltage DC power supply, and a weatherproof enclosure. If the enclosure or mounting location attenuates the signal too much, use a board/module variant with an external 2.4 GHz antenna connector and an IP-rated antenna mounted outside the enclosure.
+
+The firmware publishes `device_info` every 5 seconds. This is intentionally short for a classroom/demo setup so RSSI and channel changes are visible quickly. In a battery-powered or production system, this interval should be increased. Current limitations are listed in [Current Caveats](#current-caveats).
 
 ## Repository Layout
 
@@ -60,19 +71,21 @@ The active hardware mapping is defined in [`include/config.h`](include/config.h)
 | Open end switch | 23 | input | low | Internal pull-up enabled |
 | Closed end switch | 9 | input | low | Internal pull-up enabled |
 | Obstacle sensor | 12 | input | low | Internal pull-up enabled |
-| Wi-Fi reset button | 13 | input | low | Hold low during boot to clear saved Wi-Fi credentials |
-| Gate PWM output | 15 | output | PWM | 50 Hz LEDC output |
+| Local gate control button | 13 | input | low | Toggle/stop local gate control |
+| Gate open PWM input | 15 | output | PWM | 50 Hz LEDC output |
+| Gate close PWM input | 22 | output | PWM | 50 Hz LEDC output |
+| Wi-Fi reset button | 20 | input | low | Hold low during boot to clear saved Wi-Fi credentials |
 
-The gate inputs are debounced in software. A signal must be stable for three polling samples before the firmware treats it as active or inactive.
+The gate inputs and local control button are debounced in software. A signal must be stable for three polling samples before the firmware treats it as active or inactive.
 
 ## Firmware Behavior
 
 ### Startup Flow
 
-1. Initialize the PWM output and set the gate actuator to idle.
+1. Initialize both PWM outputs and set the gate actuator to idle.
 2. Start the gate keeper task and prime the input states.
-3. Configure the Wi-Fi reset button on GPIO13.
-4. If GPIO13 is held low during boot, clear saved Wi-Fi provisioning credentials.
+3. Configure the Wi-Fi reset button on GPIO20.
+4. If GPIO20 is held low during boot, clear saved Wi-Fi provisioning credentials.
 5. Start Wi-Fi provisioning or connect to saved Wi-Fi.
 6. Start the MQTT client.
 
@@ -94,29 +107,43 @@ The MQTT command API accepts `open`, `close`, and `stop`.
 
 - `open` is rejected when the gate is already `open` or `opening`.
 - `close` is rejected when the gate is already `closed` or `closing`.
+- Opposite-direction commands while moving are rejected; stop the gate before reversing direction.
 - `stop` is allowed and returns the actuator to idle.
 - If both end switches are active at the same time, movement is stopped and the state resolves to `stopped`.
-- If an obstacle is detected while closing, the firmware stops the gate.
+- If an obstacle is detected while opening or closing, the firmware immediately stops the gate.
+- After an obstacle stop, the firmware waits 5 seconds and retries the interrupted movement when the obstacle input is clear.
 - If movement takes longer than the configured timeout, the firmware stops the gate.
+
+### Local Button Control
+
+GPIO13 is a local gate control button with the same active-low debounce logic as the other inputs.
+
+- If the gate is closed, one press starts opening.
+- If the gate is open, one press starts closing.
+- If the gate is moving, one press stops the gate and remembers the opposite direction.
+- After a local stop, the next press moves the gate in that opposite direction.
+- If the gate is stopped between end switches without a remembered direction, the default local action is to open.
+
+The local button still goes through the gate keeper safety checks, so invalid end-switch states, obstacle handling, and movement timeouts continue to apply.
 
 ### PWM Positions
 
-The PWM layer currently uses a 10-bit LEDC timer at 50 Hz:
+The PWM layer currently uses a 10-bit LEDC timer at 50 Hz. The gate mechanism has two PWM inputs, so only one direction output is active at a time:
 
-| Action | Duty Value | Approx. Duty |
+| Action | Open PWM Duty | Close PWM Duty |
 | --- | ---: | ---: |
-| Open | 256 | 25% |
-| Idle | 512 | 50% |
-| Close | 768 | 75% |
+| Open | 512 / 50% | 0 / 0% |
+| Idle | 0 / 0% | 0 / 0% |
+| Close | 0 / 0% | 512 / 50% |
 
-These values are project-specific actuator commands, not generic hobby-servo pulse widths.
+These values are project-specific actuator commands for the assignment demo, not generic hobby-servo pulse widths.
 
 ## Firmware Setup
 
 ### Requirements
 
 - PlatformIO Core or a PlatformIO-capable IDE
-- ESP32-C6 board matching `esp32-c6-devkitm-1`
+- ESP32-C6 board matching `esp32-c6-devkitm-1` with 4MB flash
 - MQTT broker with TLS support for the firmware
 - MQTT-over-WebSocket support if you want to use the browser dashboard
 
@@ -144,9 +171,12 @@ Set a unique `NODE_ID` in [`include/config.h`](include/config.h):
 
 ```c
 #define NODE_ID "6767"
+#define DEVICE_MANUFACTURER "VUTID-6767"
+#define DEVICE_FIRMWARE_VERSION "1.0.0"
 ```
 
 The node ID becomes part of every MQTT topic, for example `gate/6767/device_info`.
+Set `DEVICE_MANUFACTURER` to your VUT ID before final submission.
 
 ### 3. Build, Upload, and Monitor
 
@@ -158,21 +188,25 @@ pio device monitor
 
 The monitor speed is configured as `115200` in [`platformio.ini`](platformio.ini).
 
-### 4. Provision Wi-Fi
+### 4. Provision Wi-Fi Over BLE
 
-On first boot, or after clearing saved credentials, the device starts provisioning using the ESP-IDF SoftAP provisioning scheme.
-
-The provisioning service name is generated as:
+On first boot, or after clearing saved credentials, the device starts the ESP-IDF BLE provisioning service. The device advertises this BLE name:
 
 ```text
 PROV_<last three bytes of STA MAC>
 ```
 
-Use the configured `WIFI_PROV_POP` when the provisioning client asks for proof of possession.
+Use the configured `WIFI_PROV_POP` when the provisioning client asks for proof of possession. The firmware also logs the exact QR payload to the serial monitor:
+
+```json
+{"ver":"v1","name":"PROV_<last three bytes of STA MAC>","pop":"<WIFI_PROV_POP>","transport":"ble"}
+```
+
+You can scan that payload with Espressif's ESP BLE Provisioning app or enter the BLE device name and POP manually in a compatible provisioning client. After provisioning finishes, the firmware releases the BLE provisioning manager and starts the Wi-Fi station connection.
 
 ### 5. Reset Saved Wi-Fi Credentials
 
-Hold GPIO13 low while the board boots. The firmware clears saved provisioning credentials, then starts provisioning again.
+Hold GPIO20 low while the board boots. The firmware clears saved provisioning credentials, then starts provisioning again.
 
 ## Dashboard Setup
 
@@ -301,7 +335,9 @@ Important: `accepted` means the firmware accepted and queued the command. It doe
 
 ```json
 {
-  "state": "closed"
+  "state": "stopped",
+  "fault": "obstacle_detected",
+  "message": "Obstacle detected; movement stopped and retry is pending"
 }
 ```
 
@@ -313,21 +349,35 @@ Valid states:
 - `closing`
 - `stopped`
 
+Valid fault values:
+
+- `none`
+- `timeout`
+- `invalid_limits`
+- `obstacle_detected`
+
+The `message` field is only present when `fault` is not `none`.
+
 ### Device Info
 
 ```json
 {
   "node_id": "6767",
+  "manufacturer": "VUTID-6767",
+  "firmware_version": "1.0.0",
+  "technology": "WiFi",
   "wifi": "connected",
   "mqtt": "connected",
   "gate_state": "closed",
   "ip": "192.168.1.50",
   "rssi": -55,
-  "ssid": "example-wifi"
+  "ssid": "example-wifi",
+  "channel": 6,
+  "report_interval_ms": 5000
 }
 ```
 
-`device_info` is published periodically while MQTT is connected.
+`device_info` is published immediately after MQTT connects and then periodically while MQTT is connected. For Wi-Fi, it includes RSSI, SSID, and channel as the radio-link parameters required by the assignment.
 
 ## Development Commands
 
@@ -405,16 +455,6 @@ This is intentional. Check the `message` field in the reply payload.
 ### Wi-Fi Logs Mention `ADDBA` or `DELBA`
 
 These are ESP-IDF Wi-Fi stack logs related to 802.11 block acknowledgement negotiation. If Wi-Fi and MQTT stay connected, they are usually informational noise rather than an application problem.
-
-### Flash Size Warning
-
-PlatformIO may print:
-
-```text
-Warning! Flash memory size mismatch detected. Expected 4MB, found 2MB!
-```
-
-The current build still succeeds, but the board configuration and actual module flash size should be checked before relying on larger partitions.
 
 ## Current Caveats
 

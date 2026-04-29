@@ -9,6 +9,8 @@ Static dashboard for the gate controller project. It is built with plain HTML, C
 - broker settings stored in browser `localStorage`
 - optional bootstrap configuration from `/config.json`
 - automatic device discovery via `gate/+/...` subscriptions
+- gate fault display from `gate_status`
+- Wi-Fi telemetry and device metadata display from `device_info`
 
 ## Run with Docker
 
@@ -60,7 +62,7 @@ When served from the Docker container, nginx generates `/config.json` at startup
 - `MQTT_USERNAME`
 - `MQTT_PASSWORD`
 
-See [public/config.example.json](C:/Users/karel/CLionProjects/IoT_projekt_vjezdova_brana/web/public/config.example.json) for the expected structure.
+See [public/config.example.json](public/config.example.json) for the expected structure.
 
 ## File Structure
 
@@ -88,7 +90,7 @@ public/
 | --- | --- |
 | `gate/<id>/cmd` | `{"id","command":"open|close|stop"}` |
 | `gate/<id>/reply` | `{"id","status":"accepted|error","message":"..."}` |
-| `gate/<id>/gate_status` | `{"state"}` |
-| `gate/<id>/device_info` | `{"node_id","wifi","ssid","mqtt","gate_state","ip","rssi"}` |
+| `gate/<id>/gate_status` | `{"state","fault","message"}` |
+| `gate/<id>/device_info` | `{"node_id","manufacturer","firmware_version","technology","wifi","ssid","channel","mqtt","gate_state","ip","rssi","report_interval_ms"}` |
 
 The dashboard subscribes to `gate/+/device_info`, `gate/+/gate_status`, and `gate/+/reply`, so devices appear automatically when they publish retained state.

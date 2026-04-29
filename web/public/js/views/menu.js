@@ -51,6 +51,8 @@ function deviceCard(d) {
     const ip    = d.info?.ip   || '–';
     const wifi  = d.info?.wifi || 'unknown';
     const ssid  = d.info?.ssid || '';
+    const fault = d.gateStatus?.fault || 'none';
+    const faultClass = fault === 'none' ? 'ok' : 'err';
     const wifiOnline = wifi === 'connected';
     const wifiLabel  = wifiOnline
         ? (ssid ? `Wi-Fi: ${ssid}` : 'Online')
@@ -65,6 +67,7 @@ function deviceCard(d) {
             <div class="meta">
                 <span class="state-badge state-${escapeHtml(state)}">${escapeHtml(state)}</span>
                 <span class="wifi-badge"><span class="dot ${wifiClass}"></span>${escapeHtml(wifiLabel)}</span>
+                ${fault !== 'none' ? `<span class="fault-badge fault-${faultClass}">${escapeHtml(fault)}</span>` : ''}
                 <span class="dev-only">ip: ${escapeHtml(ip)}</span>
             </div>
         </div>

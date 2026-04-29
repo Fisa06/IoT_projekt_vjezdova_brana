@@ -6,13 +6,13 @@
 #define IOT_PROJEKT_VJEZDOVA_BRANA_WIFI_PROVISIONING_H
 
 /**
- * @brief Start WiFi provisioning process
+ * @brief Start Wi-Fi provisioning process
  *
- * This function initializes WiFi provisioning using SoftAP scheme.
+ * This function initializes Wi-Fi provisioning using the BLE scheme.
  * If device is not provisioned, it starts provisioning mode.
- * If device is already provisioned, it connects to saved WiFi network.
+ * If device is already provisioned, it connects to the saved Wi-Fi network.
  *
- * @note This function blocks until WiFi connection is established
+ * @note This function blocks until Wi-Fi connection is established
  */
 void wifi_provisioning_start(void);
 
@@ -27,7 +27,7 @@ void wifi_provisioning_reset(void);
 /**
  * @brief Check if device is already provisioned
  *
- * @return true if device has saved WiFi credentials, false otherwise
+ * @return true if device has saved Wi-Fi credentials, false otherwise
  */
 bool wifi_is_provisioned(void);
 

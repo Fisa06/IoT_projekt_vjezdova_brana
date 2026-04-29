@@ -82,6 +82,7 @@ class DeviceStore {
                 nodeId,
                 manual: false,
                 state: null,         // open/closed/...
+                gateStatus: null,    // last gate_status JSON
                 info:  null,         // last device_info JSON
                 lastSeen: null,
                 events: [],          // [{ts, text}]
@@ -102,10 +103,16 @@ class DeviceStore {
             if (msg.json.gate_state) dev.state = msg.json.gate_state;
         } else if (msg.kind === 'gateStatus' && msg.json) {
             const newState = msg.json.state;
+            const oldFault = dev.gateStatus?.fault || 'none';
+            const newFault = msg.json.fault || 'none';
             if (newState && newState !== dev.state) {
                 this._pushEvent(dev, `stav: ${newState}`);
             }
+            if (newFault !== oldFault && newFault !== 'none') {
+                this._pushEvent(dev, `fault: ${newFault}${msg.json.message ? ` - ${msg.json.message}` : ''}`);
+            }
             dev.state = newState ?? dev.state;
+            dev.gateStatus = msg.json;
         } else if (msg.kind === 'reply' && msg.json) {
             this._pushEvent(dev, `reply ${msg.json.status || ''} ${msg.json.message || ''}`.trim());
         }

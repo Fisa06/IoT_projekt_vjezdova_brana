@@ -29,6 +29,7 @@ static const TickType_t DEVICE_INFO_PUBLISH_PERIOD = pdMS_TO_TICKS(5000);
 static esp_mqtt_client_handle_t s_mqtt_client;
 static bool s_mqtt_connected;
 static gate_keeper_status_t s_last_published_gate_status = (gate_keeper_status_t) -1;
+static gate_keeper_fault_t s_last_published_gate_fault = (gate_keeper_fault_t) -1;
 
 static const char *gate_keeper_status_to_string(gate_keeper_status_t status)
 {
@@ -92,6 +93,7 @@ static void mqtt_publish_reply(const char *id, const char *status, const char *m
 static void mqtt_publish_gate_status_if_changed(void)
 {
     gate_keeper_status_t status;
+    gate_keeper_fault_t fault;
     cJSON *json;
 
     if (!s_mqtt_connected || s_mqtt_client == NULL) {
@@ -99,7 +101,8 @@ static void mqtt_publish_gate_status_if_changed(void)
     }
 
     status = gate_keeper_get_status();
-    if (status == s_last_published_gate_status) {
+    fault = gate_keeper_get_fault();
+    if (status == s_last_published_gate_status && fault == s_last_published_gate_fault) {
         return;
     }
 
@@ -110,9 +113,15 @@ static void mqtt_publish_gate_status_if_changed(void)
     }
 
     cJSON_AddStringToObject(json, "state", gate_keeper_status_to_string(status));
+    cJSON_AddStringToObject(json, "fault", gate_keeper_get_fault_string());
+    const char *fault_message = gate_keeper_get_fault_message();
+    if (fault_message[0] != '\0') {
+        cJSON_AddStringToObject(json, "message", fault_message);
+    }
 
     if (mqtt_publish_json(MQTT_GATE_STATUS_TOPIC, json, 1, 1)) {
         s_last_published_gate_status = status;
+        s_last_published_gate_fault = fault;
     }
 
     cJSON_Delete(json);
@@ -121,11 +130,9 @@ static void mqtt_publish_gate_status_if_changed(void)
 // cppcheck-suppress unusedFunction
 void mqtt_report_gate_status_change(gate_keeper_status_t status)
 {
-    if (status == s_last_published_gate_status) {
-        return;
-    }
-
+    (void) status;
     s_last_published_gate_status = (gate_keeper_status_t) -1;
+    s_last_published_gate_fault = (gate_keeper_fault_t) -1;
     mqtt_publish_gate_status_if_changed();
 }
 
@@ -160,14 +167,19 @@ static void mqtt_publish_device_info(void)
     }
 
     cJSON_AddStringToObject(json, "node_id", NODE_ID);
+    cJSON_AddStringToObject(json, "manufacturer", DEVICE_MANUFACTURER);
+    cJSON_AddStringToObject(json, "firmware_version", DEVICE_FIRMWARE_VERSION);
+    cJSON_AddStringToObject(json, "technology", DEVICE_CONNECTIVITY_TECHNOLOGY);
     cJSON_AddStringToObject(json, "wifi", wifi_status);
     cJSON_AddStringToObject(json, "mqtt", s_mqtt_connected ? "connected" : "disconnected");
     cJSON_AddStringToObject(json, "gate_state", gate_keeper_status_to_string(gate_keeper_get_status()));
     cJSON_AddStringToObject(json, "ip", ip_string[0] != '\0' ? ip_string : "0.0.0.0");
+    cJSON_AddNumberToObject(json, "report_interval_ms", DEVICE_INFO_PUBLISH_PERIOD * portTICK_PERIOD_MS);
 
     if (wifi_status[0] == 'c') {
         cJSON_AddNumberToObject(json, "rssi", ap_info.rssi);
         cJSON_AddStringToObject(json, "ssid", (const char *) ap_info.ssid);
+        cJSON_AddNumberToObject(json, "channel", ap_info.primary);
     }
 
     mqtt_publish_json(MQTT_DEVICE_INFO_TOPIC, json, 1, 1);
@@ -207,6 +219,9 @@ static const char *mqtt_command_rejection_message(gate_keeper_command_t command)
             if (status == GATE_KEEPER_STATUS_OPENING) {
                 return "gate already opening";
             }
+            if (status == GATE_KEEPER_STATUS_CLOSING) {
+                return "gate is closing; stop before opening";
+            }
             break;
         case GATE_KEEPER_COMMAND_CLOSE:
             if (status == GATE_KEEPER_STATUS_CLOSED) {
@@ -214,6 +229,9 @@ static const char *mqtt_command_rejection_message(gate_keeper_command_t command)
             }
             if (status == GATE_KEEPER_STATUS_CLOSING) {
                 return "gate already closing";
+            }
+            if (status == GATE_KEEPER_STATUS_OPENING) {
+                return "gate is opening; stop before closing";
             }
             break;
         case GATE_KEEPER_COMMAND_STOP:
