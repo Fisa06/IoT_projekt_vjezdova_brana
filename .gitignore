@@ -1,9 +1,11 @@
 .pio
 .vscode
+.idea/
 build
 sdk*
+docs/superpowers/
 
-# Local secrets — never commit
+# Local secrets - never commit
 web/public/config.json
 web/.env
 include/secrets.h

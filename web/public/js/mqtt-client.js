@@ -1,4 +1,4 @@
-// Singleton MQTT-over-WebSocket wrapper around mqtt.js (loaded from CDN).
+// Small wrapper around mqtt.js, loaded from CDN.
 import mqttLib from 'https://esm.sh/mqtt@5.10.1/dist/mqtt.esm.js';
 import { settings } from './settings.js';
 
@@ -32,12 +32,12 @@ class MqttClient {
         const s = settings.get();
         if (!s.brokerHost) {
             this.callbacks.onStatus?.('disconnected');
-            this._info('Broker nie je nastavený — choď do Nastavenia.');
+            this._info('Broker is not configured. Open Settings first.');
             return;
         }
         const url = settings.brokerUrl();
         this.callbacks.onStatus?.('connecting');
-        this._info(`MQTT pripajam sa na ${url}`);
+        this._info(`MQTT connecting to ${url}`);
 
         const opts = {
             clean: true,
@@ -51,7 +51,7 @@ class MqttClient {
 
         this.client.on('connect', () => {
             this.callbacks.onStatus?.('connected');
-            this._info('MQTT pripojené');
+            this._info('MQTT connected');
             this.client.subscribe('gate/+/device_info', { qos: 1 });
             this.client.subscribe('gate/+/gate_status', { qos: 1 });
             this.client.subscribe('gate/+/reply',       { qos: 1 });
@@ -61,7 +61,7 @@ class MqttClient {
         this.client.on('close',     () => this.callbacks.onStatus?.('disconnected'));
         this.client.on('error', (err) => {
             this.callbacks.onStatus?.('error');
-            this._info(`MQTT chyba: ${err.message}`);
+            this._info(`MQTT error: ${err.message}`);
         });
 
         this.client.on('message', (topic, payload) => {
@@ -88,11 +88,11 @@ class MqttClient {
 
     sendCommand(nodeId, command) {
         if (!this.client) {
-            this._info('MQTT klient nie je inicializovaný');
+            this._info('MQTT client is not initialized');
             return false;
         }
         if (!this.client.connected) {
-            this._info('MQTT nie je pripojené, príkaz neodoslaný');
+            this._info('MQTT is not connected, command not sent');
             return false;
         }
         const id = `web-${Date.now()}`;
@@ -101,7 +101,7 @@ class MqttClient {
         this._debug(`-> ${topic} ${payload}`);
         this.client.publish(topic, payload, { qos: 1 }, (err) => {
             if (err) {
-                this._info(`Príkaz neodoslaný: ${err.message || err}`);
+                this._info(`Command not sent: ${err.message || err}`);
             } else {
                 this._debug(`PUBLISH ok (id=${id})`);
             }
@@ -111,25 +111,27 @@ class MqttClient {
 
     rescan() {
         if (!this.client || !this.client.connected) {
-            this._info('Vyhľadávanie: MQTT nie je pripojené');
+            this._info('Rescan skipped: MQTT is not connected');
             return false;
         }
         const topics = ['gate/+/device_info', 'gate/+/gate_status', 'gate/+/reply'];
-        this._info('Vyhľadávam zariadenia…');
+        this._info('Rescanning devices...');
         this.client.unsubscribe(topics, () => {
             this.client.subscribe(topics, { qos: 1 }, (err) => {
-                if (err) this._info(`Vyhľadávanie chyba: ${err.message || err}`);
-                else     this._debug('Vyhľadávanie dokončené');
+                if (err) this._info(`Rescan error: ${err.message || err}`);
+                else     this._debug('Rescan finished');
             });
         });
         return true;
     }
 
-    /** User-visible log line (always shown). */
-    _info(line)  { this.callbacks.onLog?.(line); }
+    _info(line) {
+        this.callbacks.onLog?.(line);
+    }
 
-    /** Technical log line — only emitted when developer mode is on. */
-    _debug(line) { if (settings.get().devMode) this.callbacks.onLog?.(line); }
+    _debug(line) {
+        if (settings.get().devMode) this.callbacks.onLog?.(line);
+    }
 }
 
 export const mqtt = new MqttClient();

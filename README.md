@@ -1,20 +1,23 @@
-# IoT Gate Controller
+# BPC-IoT Project 2 - Gate Controller
 
-ESP32-C6 firmware for a driveway gate plus a small browser dashboard. The firmware is built with PlatformIO and ESP-IDF. The dashboard is a static HTML/CSS/JS app served by nginx in Docker. Both sides communicate through an MQTT broker, so there is no custom backend service in this repository.
+This is my solution for project 2, a wireless receiver for a driveway gate. The firmware runs on ESP32-C6 with ESP-IDF/PlatformIO and the small web dashboard is just static HTML/CSS/JS served by nginx. The ESP32 and dashboard talk through an MQTT broker, so there is no extra backend in this repository.
 
 ## Contents
 
 - [Architecture](#architecture)
 - [Technical Solution](#technical-solution)
+- [Assignment Checklist](#assignment-checklist)
+- [Defense Notes](#defense-notes)
 - [Repository Layout](#repository-layout)
 - [Hardware Configuration](#hardware-configuration)
 - [Firmware Behavior](#firmware-behavior)
 - [Firmware Setup](#firmware-setup)
 - [Dashboard Setup](#dashboard-setup)
 - [MQTT Protocol](#mqtt-protocol)
+- [Demo Checklist](#demo-checklist)
 - [Development Commands](#development-commands)
 - [Troubleshooting](#troubleshooting)
-- [Current Caveats](#current-caveats)
+- [Known Limits](#known-limits)
 
 ## Architecture
 
@@ -25,27 +28,48 @@ ESP32-C6 firmware for a driveway gate plus a small browser dashboard. The firmwa
 +-------------+              +-------------+                    +------------------+
 ```
 
-The ESP32 publishes retained status messages and subscribes to commands for its own node ID. The web dashboard subscribes to wildcard topics, so every gate unit that publishes retained state can appear automatically in the UI.
+The ESP32 publishes retained status messages and listens for commands for its own node ID. The web dashboard subscribes to wildcard topics, so the gate appears automatically after it publishes retained MQTT state.
 
 ## Technical Solution
 
-This project uses Wi-Fi as the runtime radio technology. The assignment assumes a family house with 230V power at the gate, no data cable, and no existing outdoor Wi-Fi coverage. Wi-Fi is suitable here because an outdoor access point or mesh node can be added near the gate, the range is enough for a typical driveway installation, and MQTT/TLS support is mature on ESP32-C6. BLE is used only for initial Wi-Fi provisioning, so the user can configure credentials from a phone without temporarily joining an ESP SoftAP network.
+I chose Wi-Fi as the main radio technology. The gate is at a family house, 230 V power is available, but there is no data cable and no outdoor Wi-Fi coverage yet. In this situation adding one outdoor AP or mesh node near the gate is simpler than building a LoRa/NB-IoT solution, and Wi-Fi also gives normal IP connectivity for MQTT/TLS. I am not choosing Wi-Fi only because ESP32-C6 supports it; the installation makes Wi-Fi a reasonable choice.
 
-The transport/application layer is MQTT over TLS from the ESP32 to the broker. The dashboard uses MQTT over secure WebSockets when running in a browser. MQTT is used because commands, retained state, last-will status, and periodic telemetry map naturally to topics. Gate state is retained so a freshly opened dashboard immediately receives the last known state.
+BLE is used only for first Wi-Fi setup. This is nicer than hard-coding SSID/password and the user does not have to join a temporary AP from a phone.
 
-The demo hardware uses the ESP32-C6-DevKitM-1 integrated 2.4 GHz PCB antenna. For an outdoor installation, the recommended additional hardware is an outdoor Wi-Fi AP or mesh node covering the driveway, an isolated 230V AC to low-voltage DC power supply, and a weatherproof enclosure. If the enclosure or mounting location attenuates the signal too much, use a board/module variant with an external 2.4 GHz antenna connector and an IP-rated antenna mounted outside the enclosure.
+The transport/application protocol is MQTT over TLS from the ESP32 to the broker. The dashboard uses MQTT over secure WebSockets because browsers cannot use raw MQTT/TCP directly. MQTT fits this project well because commands, retained state, last will and periodic telemetry all map cleanly to topics.
 
-The firmware publishes `device_info` every 5 seconds. This is intentionally short for a classroom/demo setup so RSSI and channel changes are visible quickly. In a battery-powered or production system, this interval should be increased. Current limitations are listed in [Current Caveats](#current-caveats).
+For the demo I use the ESP32-C6-DevKitM-1 PCB antenna. For a real outdoor installation I would add an outdoor 2.4 GHz Wi-Fi AP/mesh node, an isolated 230 V to low-voltage supply, and a weatherproof box. If the box weakens the signal too much, I would use a board/module with an external antenna connector and an outdoor antenna.
+
+The firmware publishes `device_info` every 5 seconds. This is short on purpose because it makes RSSI and channel changes easy to see during testing. For a real installation this interval could be longer.
+
+## Assignment Checklist
+
+More detail is in [docs/assignment-checklist.md](docs/assignment-checklist.md).
+
+| Requirement from assignment | Where it is covered |
+| --- | --- |
+| Open/close gate over wireless link | MQTT command topic `gate/<id>/cmd` |
+| Two PWM inputs for gate movement | `GATE_PWM_OPEN_GPIO` and `GATE_PWM_CLOSE_GPIO` |
+| End switches for open/closed | GPIO23 and GPIO9 |
+| Obstacle indication | GPIO12, stops movement and retries later |
+| Report every gate state change | retained `gate_status` MQTT message |
+| Periodic radio parameters | `device_info` contains RSSI, SSID and Wi-Fi channel |
+| Device info on startup | `device_info` contains node ID, firmware, manufacturer and technology |
+| Technical choice explanation | this README, section Technical Solution |
+
+## Defense Notes
+
+For oral defense preparation I also keep a more practical Czech/ASCII cheat sheet in [docs/defense-notes.md](docs/defense-notes.md). It maps the assignment points to the implementation, contains the demo order, likely questions and the limitations I should mention honestly.
 
 ## Repository Layout
 
 ```text
 src/
-  main.c                  Firmware entrypoint and boot-time reset button handling
+  main.c                  Firmware entrypoint and boot reset button handling
   gate_keeper.c           Gate state machine, end-stop handling, obstacle handling
   mqtt.c                  MQTT client, command parsing, status publishing
   pwm_gate_controll.c     LEDC PWM setup and gate actuator output positions
-  wifi_provisioning.c     ESP-IDF Wi-Fi provisioning flow
+  wifi_provisioning.c     ESP-IDF BLE Wi-Fi provisioning flow
 
 include/
   config.h                Node ID and GPIO mapping
@@ -124,7 +148,7 @@ GPIO13 is a local gate control button with the same active-low debounce logic as
 - After a local stop, the next press moves the gate in that opposite direction.
 - If the gate is stopped between end switches without a remembered direction, the default local action is to open.
 
-The local button still goes through the gate keeper safety checks, so invalid end-switch states, obstacle handling, and movement timeouts continue to apply.
+The local button still goes through the same gate keeper checks, so invalid end switches, obstacle handling, and timeouts still apply.
 
 ### PWM Positions
 
@@ -136,7 +160,7 @@ The PWM layer currently uses a 10-bit LEDC timer at 50 Hz. The gate mechanism ha
 | Idle | 0 / 0% | 0 / 0% |
 | Close | 0 / 0% | 512 / 50% |
 
-These values are project-specific actuator commands for the assignment demo, not generic hobby-servo pulse widths.
+These values are for this demo mechanism, not generic hobby-servo pulse widths.
 
 ## Firmware Setup
 
@@ -329,7 +353,7 @@ Rejected command:
 }
 ```
 
-Important: `accepted` means the firmware accepted and queued the command. It does not mean the gate has already reached the target end position. Use `gate_status` for actual state.
+Important: `accepted` means the firmware accepted and queued the command. It does not mean the gate has already reached the target end position. Use `gate_status` for the real state.
 
 ### Gate Status
 
@@ -377,7 +401,20 @@ The `message` field is only present when `fault` is not `none`.
 }
 ```
 
-`device_info` is published immediately after MQTT connects and then periodically while MQTT is connected. For Wi-Fi, it includes RSSI, SSID, and channel as the radio-link parameters required by the assignment.
+`device_info` is published after MQTT connects and then periodically. For Wi-Fi it includes RSSI, SSID and channel, which are the radio-link values used for this project.
+
+## Demo Checklist
+
+This is the order I would use when presenting the project:
+
+1. Build and upload the firmware with PlatformIO.
+2. Provision Wi-Fi over BLE after clearing saved credentials with GPIO20.
+3. Open the dashboard and connect it to the MQTT broker.
+4. Send `open`, `close`, and `stop` commands from the dashboard.
+5. Show that the end switches stop the PWM output.
+6. Trigger the obstacle input and show the `obstacle_detected` status.
+7. Press the local GPIO13 button while idle and while moving.
+8. Show `device_info`, mainly RSSI, SSID, Wi-Fi channel, firmware version and manufacturer/VUTID.
 
 ## Development Commands
 
@@ -423,7 +460,7 @@ or:
 
 ### Static Analysis Reports `unusedFunction`
 
-Some ESP-IDF entrypoints and module functions are referenced through framework conventions or across translation units in a way that Cppcheck may not fully understand. The project uses targeted `cppcheck-suppress unusedFunction` comments only for those false positives.
+Some ESP-IDF entrypoints and module functions are called by the framework or from other translation units, so Cppcheck may still report `unusedFunction` style warnings even when the build is valid.
 
 Run:
 
@@ -456,9 +493,9 @@ This is intentional. Check the `message` field in the reply payload.
 
 These are ESP-IDF Wi-Fi stack logs related to 802.11 block acknowledgement negotiation. If Wi-Fi and MQTT stay connected, they are usually informational noise rather than an application problem.
 
-## Current Caveats
+## Known Limits
 
-- The dashboard source still contains some Slovak UI strings.
 - The firmware uses fixed PWM duty values; calibrate them for the actual actuator hardware before real deployment.
 - The project does not currently include automated firmware unit tests.
 - MQTT credentials and provisioning POP are compile-time firmware secrets in `include/secrets.h`.
+- A real gate installation would also need proper safety relays, isolation and certified motor control hardware. This project only demonstrates the IoT control logic.

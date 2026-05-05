@@ -43,7 +43,6 @@ static esp_err_t gate_pwm_configure_channel(ledc_channel_t channel, int gpio_num
     return ledc_channel_config(&ledc_channel);
 }
 
-// cppcheck-suppress unusedFunction
 esp_err_t ledc_init(void)
 {
     const ledc_timer_config_t ledc_timer = {
@@ -73,7 +72,6 @@ esp_err_t ledc_init(void)
     return ESP_OK;
 }
 
-// cppcheck-suppress unusedFunction
 esp_err_t gate_pwm_set_open(void)
 {
     ESP_RETURN_ON_ERROR(gate_pwm_set_channel_duty(LEDC_CHANNEL_1, PWM_IDLE_DUTY), TAG, "Failed to idle close PWM");
@@ -82,7 +80,6 @@ esp_err_t gate_pwm_set_open(void)
     return ESP_OK;
 }
 
-// cppcheck-suppress unusedFunction
 esp_err_t gate_pwm_set_idle(void)
 {
     ESP_RETURN_ON_ERROR(gate_pwm_set_channel_duty(LEDC_CHANNEL_0, PWM_IDLE_DUTY), TAG, "Failed to idle open PWM");
@@ -91,7 +88,6 @@ esp_err_t gate_pwm_set_idle(void)
     return ESP_OK;
 }
 
-// cppcheck-suppress unusedFunction
 esp_err_t gate_pwm_set_close(void)
 {
     ESP_RETURN_ON_ERROR(gate_pwm_set_channel_duty(LEDC_CHANNEL_0, PWM_IDLE_DUTY), TAG, "Failed to idle open PWM");

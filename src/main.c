@@ -28,7 +28,6 @@ static void wifi_reset_button_init(void)
     ESP_ERROR_CHECK(gpio_config(&config));
 }
 
-// cppcheck-suppress unusedFunction
 void app_main() {
     ESP_ERROR_CHECK(ledc_init());
     ESP_ERROR_CHECK(gate_keeper_init());

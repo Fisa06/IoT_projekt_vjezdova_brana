@@ -1,4 +1,4 @@
-// Bootstrap: load config, init MQTT, init store, install router.
+// Starts the dashboard and switches between the few simple views.
 import { loadConfig } from './config.js';
 import { settings } from './settings.js';
 import { mqtt } from './mqtt-client.js';
@@ -28,7 +28,7 @@ function router() {
             return;
         }
     }
-    viewEl.innerHTML = '<p class="empty">Stránka neexistuje.</p>';
+    viewEl.innerHTML = '<p class="empty">Page not found.</p>';
 }
 
 function highlightNav(hash) {
@@ -52,28 +52,29 @@ async function main() {
 }
 
 function initMobileMenu() {
-    const toggle   = document.getElementById('menu-toggle');
+    const toggle = document.getElementById('menu-toggle');
     const backdrop = document.getElementById('backdrop');
     const close = () => document.body.classList.remove('menu-open');
     toggle?.addEventListener('click', () => document.body.classList.toggle('menu-open'));
     backdrop?.addEventListener('click', close);
-    // Close drawer after picking a nav link or navigating.
     document.getElementById('nav-menu')?.addEventListener('click', (e) => {
-        if (e.target.tagName === 'A') close();
+        if (e.target.tagName === 'A') {
+            close();
+        }
     });
     window.addEventListener('hashchange', close);
 }
 
 function updateConnectionIndicator(status) {
-    const dot  = document.getElementById('conn-dot');
+    const dot = document.getElementById('conn-dot');
     const text = document.getElementById('conn-text');
     dot.className = 'dot ' + (status === 'connected' ? 'on'
                             : status === 'connecting' ? 'warn'
                             : status === 'error'      ? 'err' : 'off');
-    text.textContent = status === 'connected'  ? 'Pripojené'
-                     : status === 'connecting' ? 'Pripájam…'
-                     : status === 'error'      ? 'Chyba'
-                     :                           'Odpojené';
+    text.textContent = status === 'connected'  ? 'Connected'
+                     : status === 'connecting' ? 'Connecting...'
+                     : status === 'error'      ? 'Error'
+                     :                           'Disconnected';
 }
 
 main();

@@ -418,7 +418,7 @@ static void gate_keeper_update_motion(gate_state_t *state)
         gate_keeper_refresh_status(*state);
         return;
     }
-
+//depends may have to change that
     if ((*state == GATE_STATE_OPENING || *state == GATE_STATE_CLOSING) && gate_obstacle_active()) {
         gate_state_t interrupted_state = *state;
         gate_set_fault(GATE_KEEPER_FAULT_OBSTACLE_STOP, "Obstacle detected while moving");
@@ -494,7 +494,6 @@ static void gate_keeper_task(void *arg)
     }
 }
 
-// cppcheck-suppress unusedFunction
 esp_err_t gate_keeper_init(void)
 {
     if (s_gate_command_queue != NULL) {
@@ -533,7 +532,7 @@ esp_err_t gate_keeper_init(void)
     return ESP_OK;
 }
 
-esp_err_t gate_keeper_validate_command(gate_keeper_command_t command)
+static esp_err_t gate_keeper_validate_command(gate_keeper_command_t command)
 {
     gate_keeper_status_t status = gate_keeper_get_status();
 
@@ -561,7 +560,6 @@ esp_err_t gate_keeper_validate_command(gate_keeper_command_t command)
     return ESP_OK;
 }
 
-// cppcheck-suppress unusedFunction
 esp_err_t gate_keeper_send_command(gate_keeper_command_t command)
 {
     if (s_gate_command_queue == NULL) {
@@ -582,19 +580,16 @@ gate_keeper_status_t gate_keeper_get_status(void)
     return s_gate_status;
 }
 
-// cppcheck-suppress unusedFunction
 gate_keeper_fault_t gate_keeper_get_fault(void)
 {
     return s_gate_fault;
 }
 
-// cppcheck-suppress unusedFunction
 const char *gate_keeper_get_fault_string(void)
 {
     return gate_fault_to_string(s_gate_fault);
 }
 
-// cppcheck-suppress unusedFunction
 const char *gate_keeper_get_fault_message(void)
 {
     return gate_fault_to_message(s_gate_fault);

@@ -1,11 +1,11 @@
-// Logs view: full-screen scrollable list, with clear button.
+// Log view used mostly during testing.
 import { logger } from '../logger.js';
 
 export function renderLogs(root) {
     root.innerHTML = `
         <div class="logs-header">
-            <h2 class="section-title">Logy</h2>
-            <button class="secondary" id="clear-logs">Vyčistiť</button>
+            <h2 class="section-title">Logs</h2>
+            <button class="secondary" id="clear-logs">Clear</button>
         </div>
         <div class="logs-panel">
             <ul id="logs-list"></ul>
@@ -17,7 +17,7 @@ export function renderLogs(root) {
     const repaint = () => {
         const items = logger.list();
         if (items.length === 0) {
-            listEl.innerHTML = '<li class="empty">Žiadne záznamy.</li>';
+            listEl.innerHTML = '<li class="empty">No log entries.</li>';
             return;
         }
         listEl.innerHTML = items.map(e =>

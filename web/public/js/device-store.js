@@ -1,28 +1,25 @@
-// In-memory device registry, persisted (manual additions only) to localStorage.
-// Auto-discovered devices are added on every device_info message.
+// Keeps the devices shown in the dashboard.
 import { mqtt } from './mqtt-client.js';
 import { logger } from './logger.js';
 
-const STORAGE_KEY      = 'gate.manualDevices';
+const STORAGE_KEY = 'gate.manualDevices';
 const NAMES_STORAGE_KEY = 'gate.deviceNames';
-const MAX_EVENTS        = 100;
+const MAX_EVENTS = 100;
 
 class DeviceStore {
     constructor() {
-        this.map = new Map(); // nodeId -> device
+        this.map = new Map();
         this.listeners = new Set();
     }
 
     init() {
-        // Load saved names first so they apply to every device that appears.
         try { this.names = JSON.parse(localStorage.getItem(NAMES_STORAGE_KEY) || '{}'); }
         catch { this.names = {}; }
 
-        // Load manually added device IDs (so they appear even if offline).
         try {
             const ids = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
             ids.forEach(id => this._ensure(id, { manual: true }));
-        } catch { /* ignore */ }
+        } catch { /* ignore broken localStorage */ }
 
         mqtt.onMessage((msg) => this._handleMessage(msg));
     }
@@ -37,7 +34,6 @@ class DeviceStore {
         return this.map.get(nodeId) || null;
     }
 
-    /** Friendly name if set, otherwise the raw node_id. */
     displayName(devOrId) {
         const id = typeof devOrId === 'string' ? devOrId : devOrId.nodeId;
         return this.names[id] || id;
@@ -58,7 +54,7 @@ class DeviceStore {
         dev.manual = true;
         this._persistManual();
         this._notify();
-        logger.log(`Pridané zariadenie: ${nodeId}`);
+        logger.log(`Added device: ${nodeId}`);
         return true;
     }
 
@@ -73,19 +69,17 @@ class DeviceStore {
         return () => this.listeners.delete(fn);
     }
 
-    // ----- internal -----
-
     _ensure(nodeId, init = {}) {
         let dev = this.map.get(nodeId);
         if (!dev) {
             dev = {
                 nodeId,
                 manual: false,
-                state: null,         // open/closed/...
-                gateStatus: null,    // last gate_status JSON
-                info:  null,         // last device_info JSON
+                state: null,
+                gateStatus: null,
+                info: null,
                 lastSeen: null,
-                events: [],          // [{ts, text}]
+                events: [],
                 ...init,
             };
             this.map.set(nodeId, dev);
@@ -106,7 +100,7 @@ class DeviceStore {
             const oldFault = dev.gateStatus?.fault || 'none';
             const newFault = msg.json.fault || 'none';
             if (newState && newState !== dev.state) {
-                this._pushEvent(dev, `stav: ${newState}`);
+                this._pushEvent(dev, `state: ${newState}`);
             }
             if (newFault !== oldFault && newFault !== 'none') {
                 this._pushEvent(dev, `fault: ${newFault}${msg.json.message ? ` - ${msg.json.message}` : ''}`);

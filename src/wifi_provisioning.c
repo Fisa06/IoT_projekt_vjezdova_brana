@@ -2,8 +2,8 @@
 // Created by karel on 15.04.2026.
 //
 
-#include <string.h>
-#include <sys/param.h>
+#include <stdbool.h>
+#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"
@@ -12,11 +12,6 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 #include "esp_netif.h"
-
-#include "lwip/err.h"
-#include "lwip/sockets.h"
-#include "lwip/sys.h"
-#include <lwip/netdb.h>
 
 #include "secrets.h"
 #include "wifi_provisioning.h"
@@ -27,7 +22,6 @@ static const char TAG[] = "WIFI_PROV";
 static const char PROV_QR_VERSION[] = "v1";
 static const char PROV_TRANSPORT[] = "ble";
 
-/* Signal Wi-Fi events on this event-group */
 const int WIFI_CONNECTED_EVENT = BIT0;
 static EventGroupHandle_t wifi_event_group;
 static bool event_handlers_registered;
@@ -68,7 +62,6 @@ static const char *wifi_disconnect_reason_name(uint8_t reason)
     }
 }
 
-/* Event handler for catching system events */
 static void event_handler(void* arg, esp_event_base_t event_base,
                           int32_t event_id, void* event_data)
 {
@@ -105,7 +98,6 @@ static void event_handler(void* arg, esp_event_base_t event_base,
                 retries = 0;
                 break;
             case WIFI_PROV_END:
-                /* De-initialize manager once provisioning is finished */
                 wifi_prov_mgr_deinit();
                 break;
             default:
@@ -149,7 +141,6 @@ static void event_handler(void* arg, esp_event_base_t event_base,
             case IP_EVENT_STA_GOT_IP: {
                 ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
                 ESP_LOGI(TAG, "Connected with IP Address:" IPSTR, IP2STR(&event->ip_info.ip));
-                /* Signal main application to continue execution */
                 xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_EVENT);
                 break;
             }
@@ -166,7 +157,6 @@ static void event_handler(void* arg, esp_event_base_t event_base,
 
 static void wifi_init_sta(void)
 {
-    /* Start Wi-Fi in station mode */
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_start());
 }
@@ -250,27 +240,7 @@ static void log_provisioning_qr_payload(const char *service_name, const char *po
              PROV_TRANSPORT);
 }
 
-/* Handler for the optional provisioning endpoint registered by the application.
- * The data format can be chosen by applications. Here, we are using plain ascii text.
- * Applications can choose to use JSON for instance instead. */
-esp_err_t custom_prov_data_handler(uint32_t session_id, const uint8_t *inbuf, ssize_t inlen,
-                                          uint8_t **outbuf, ssize_t *outlen, void *priv_data)
-{
-    if (inbuf) {
-        ESP_LOGI(TAG, "Received data: %.*s", inlen, (char *)inbuf);
-    }
-    const char response[] = "SUCCESS";
-    *outbuf = (uint8_t *)strdup(response);
-    if (*outbuf == NULL) {
-        ESP_LOGE(TAG, "System out of memory");
-        return ESP_ERR_NO_MEM;
-    }
-    *outlen = strlen(response) + 1; /* +1 for NULL terminating byte */
 
-    return ESP_OK;
-}
-
-// cppcheck-suppress unusedFunction
 void wifi_provisioning_start(void)
 {
     init_nvs_flash();
@@ -279,71 +249,30 @@ void wifi_provisioning_start(void)
     init_provisioning_manager();
 
     bool provisioned = false;
-    /* Let's find out if the device is provisioned */
     ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
 
     if (!provisioned) {
         ESP_LOGI(TAG, "Starting provisioning");
 
-        /* BLE device name advertised by the provisioning service. */
         char service_name[12];
         get_device_service_name(service_name, sizeof(service_name));
 
-        /* What is the security level that we want (0 or 1):
-         *      - WIFI_PROV_SECURITY_0 is simply plain text communication.
-         *      - WIFI_PROV_SECURITY_1 is secure communication which consists of secure handshake
-         *          using X25519 key exchange and proof of possession (pop) and AES-CTR
-         *          for encryption/decryption of messages.
-         */
+        /* Security 1 means BLE provisioning uses POP and encrypted messages. */
         wifi_prov_security_t security = WIFI_PROV_SECURITY_1;
-
-        /* Do we want a proof-of-possession (ignored if Security 0 is selected):
-         *      - this should be a string with length > 0
-         *      - NULL if not used
-         */
         const char *pop = WIFI_PROV_POP;
-
-        /* BLE provisioning does not use a service key. */
         const char *service_key = NULL;
 
-        /* An optional endpoint that applications can create if they wish to get
-         * additional custom data during provisioning workflow.
-         * The endpoint name can be anything of your choice.
-         * This call must be made before starting the provisioning.
-         */
-        wifi_prov_mgr_endpoint_create("custom-data");
-
-        /* Start provisioning service */
         ESP_ERROR_CHECK(wifi_prov_mgr_start_provisioning(security, pop, service_name, service_key));
         log_provisioning_qr_payload(service_name, pop);
-
-        /* The handler for the optional endpoint created above.
-         * This call must be made after starting the provisioning, and only if the endpoint
-         * has already been created above.
-         */
-        wifi_prov_mgr_endpoint_register("custom-data", custom_prov_data_handler, NULL);
-
-        /* Uncomment the following to wait for the provisioning to finish and then release
-         * the resources of the manager. Since in this case de-initialization is triggered
-         * by the default event loop handler, we don't need to call the following */
-        // wifi_prov_mgr_wait();
-        // wifi_prov_mgr_deinit();
     } else {
         ESP_LOGI(TAG, "Already provisioned, starting Wi-Fi STA");
-
-        /* We don't need the manager as device is already provisioned,
-         * so let's release it's resources */
         wifi_prov_mgr_deinit();
-
-        /* Start Wi-Fi station */
         wifi_init_sta();
     }
 
-    /* Wait for Wi-Fi connection */
     xEventGroupWaitBits(wifi_event_group, WIFI_CONNECTED_EVENT, false, true, portMAX_DELAY);
 }
 
-// cppcheck-suppress unusedFunction
 void wifi_provisioning_reset(void)
 {
     init_nvs_flash();
@@ -354,18 +283,4 @@ void wifi_provisioning_reset(void)
     ESP_LOGI(TAG, "Resetting saved Wi-Fi provisioning credentials");
     ESP_ERROR_CHECK(wifi_prov_mgr_reset_provisioning());
     wifi_prov_mgr_deinit();
-}
-
-// cppcheck-suppress unusedFunction
-bool wifi_is_provisioned(void)
-{
-    init_nvs_flash();
-    init_network_stack();
-    init_wifi_driver();
-    init_provisioning_manager();
-
-    bool provisioned = false;
-    ESP_ERROR_CHECK(wifi_prov_mgr_is_provisioned(&provisioned));
-    wifi_prov_mgr_deinit();
-    return provisioned;
 }

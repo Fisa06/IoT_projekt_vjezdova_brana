@@ -127,7 +127,6 @@ static void mqtt_publish_gate_status_if_changed(void)
     cJSON_Delete(json);
 }
 
-// cppcheck-suppress unusedFunction
 void mqtt_report_gate_status_change(gate_keeper_status_t status)
 {
     (void) status;
@@ -344,7 +343,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
     }
 }
 
-// cppcheck-suppress unusedFunction
 esp_err_t mqtt_init(void)
 {
     static bool device_info_task_started;

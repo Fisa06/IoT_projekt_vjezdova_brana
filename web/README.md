@@ -1,16 +1,16 @@
 # Gate Control Web
 
-Static dashboard for the gate controller project. It is built with plain HTML, CSS, and JavaScript, served by nginx, and connects directly to the MQTT broker over WebSocket.
+This is the small dashboard I used for the gate project demo. I kept it as plain HTML, CSS and JavaScript so it can be opened easily and there is no frontend build step to explain or maintain.
 
 ## Features
 
-- no build step
-- no backend service
-- broker settings stored in browser `localStorage`
-- optional bootstrap configuration from `/config.json`
-- automatic device discovery via `gate/+/...` subscriptions
-- gate fault display from `gate_status`
-- Wi-Fi telemetry and device metadata display from `device_info`
+- no frontend build step
+- no backend service in this repository
+- broker settings saved in browser `localStorage`
+- optional Docker startup config through `/config.json`
+- automatic device discovery from retained MQTT topics
+- gate state and fault display from `gate_status`
+- Wi-Fi RSSI/channel and device data from `device_info`
 
 ## Run with Docker
 
@@ -38,11 +38,11 @@ Then open `http://localhost:8080`.
 
 ## Runtime Configuration
 
-The dashboard supports two configuration sources:
+The dashboard can get broker settings in two ways:
 
 ### 1. Browser settings
 
-The Settings page lets the user define:
+The Settings page lets me enter:
 
 - broker host
 - broker port
@@ -52,11 +52,11 @@ The Settings page lets the user define:
 - password
 - developer mode
 
-These values are persisted in browser `localStorage`.
+These values stay in browser `localStorage`.
 
 ### 2. `/config.json`
 
-When served from the Docker container, nginx generates `/config.json` at startup from:
+When it runs in Docker, `docker-entrypoint.sh` writes `/config.json` from:
 
 - `MQTT_BROKER_URL`
 - `MQTT_USERNAME`
@@ -93,4 +93,4 @@ public/
 | `gate/<id>/gate_status` | `{"state","fault","message"}` |
 | `gate/<id>/device_info` | `{"node_id","manufacturer","firmware_version","technology","wifi","ssid","channel","mqtt","gate_state","ip","rssi","report_interval_ms"}` |
 
-The dashboard subscribes to `gate/+/device_info`, `gate/+/gate_status`, and `gate/+/reply`, so devices appear automatically when they publish retained state.
+The dashboard subscribes to `gate/+/device_info`, `gate/+/gate_status`, and `gate/+/reply`. Devices appear automatically after they publish retained state.

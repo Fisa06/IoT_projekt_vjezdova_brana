@@ -1,45 +1,45 @@
-// Settings view: broker config + developer mode.
+// Settings page for MQTT broker connection.
 import { settings } from '../settings.js';
 import { mqtt } from '../mqtt-client.js';
 
 export function renderSettings(root) {
     const s = settings.get();
     root.innerHTML = `
-        <h2 class="section-title">Nastavenia</h2>
+        <h2 class="section-title">Settings</h2>
         <form class="settings-form" id="settings-form">
             <fieldset class="panel">
                 <h3>MQTT broker</h3>
-                <label>Adresa
+                <label>Host
                     <input type="text" name="brokerHost" value="${escapeAttr(s.brokerHost)}" required>
                 </label>
                 <label>Port
                     <input type="text" name="brokerPort" value="${escapeAttr(s.brokerPort)}" required>
                 </label>
-                <label>Cesta (path)
+                <label>Path
                     <input type="text" name="brokerPath" value="${escapeAttr(s.brokerPath)}" required>
                 </label>
                 <label class="checkbox">
                     <input type="checkbox" name="brokerTls" ${s.brokerTls ? 'checked' : ''}>
-                    Šifrované pripojenie (wss://)
+                    Encrypted connection (wss://)
                 </label>
-                <label>Používateľ
+                <label>Username
                     <input type="text" name="username" value="${escapeAttr(s.username)}">
                 </label>
-                <label>Heslo
+                <label>Password
                     <input type="password" name="password" value="${escapeAttr(s.password)}">
                 </label>
             </fieldset>
 
             <fieldset class="panel">
-                <h3>Aplikácia</h3>
+                <h3>Application</h3>
                 <label class="checkbox">
                     <input type="checkbox" name="devMode" ${s.devMode ? 'checked' : ''}>
-                    Vývojársky režim (zobraz technické detaily a logy)
+                    Developer mode (show technical details and logs)
                 </label>
             </fieldset>
 
             <div class="form-actions">
-                <button type="submit">Uložiť a pripojiť</button>
+                <button type="submit">Save and connect</button>
                 <span id="save-hint" class="hint"></span>
             </div>
         </form>
@@ -60,7 +60,7 @@ export function renderSettings(root) {
         settings.save(patch);
         mqtt.reconnect();
         const hint = root.querySelector('#save-hint');
-        hint.textContent = 'Uložené, pripájam sa…';
+        hint.textContent = 'Saved, connecting...';
         setTimeout(() => { hint.textContent = ''; }, 2500);
         applyDevModeClass();
     });

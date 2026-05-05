@@ -1,4 +1,4 @@
-// Device detail: status, controls, event log.
+// Detail page for one gate unit.
 import { devices } from '../device-store.js';
 import { mqtt } from '../mqtt-client.js';
 
@@ -6,30 +6,30 @@ export function renderDevice(root, nodeId) {
     const name = devices.displayName(nodeId);
     root.innerHTML = `
         <h2 class="section-title">
-            <a href="#/" style="color:#9aa0ab; text-decoration:none;">&larr; Zariadenia</a>
+            <a href="#/" style="color:#9aa0ab; text-decoration:none;">&larr; Devices</a>
             &nbsp;/&nbsp; <span id="title-name">${escapeHtml(name)}</span>
         </h2>
         <div class="device-detail">
             <div class="panel" id="status-panel"></div>
             <div class="panel">
-                <h3>Ovládanie</h3>
+                <h3>Controls</h3>
                 <div class="controls">
-                    <button data-cmd="open">Otvoriť</button>
+                    <button data-cmd="open">Open</button>
                     <button data-cmd="stop" class="secondary">Stop</button>
-                    <button data-cmd="close" class="danger">Zavrieť</button>
+                    <button data-cmd="close" class="danger">Close</button>
                 </div>
-                <h3 style="margin-top:18px;">Názov</h3>
+                <h3 style="margin-top:18px;">Name</h3>
                 <form class="rename-form" id="rename-form">
-                    <input type="text" id="name-input" placeholder="Vlastný názov (prázdne = node_id)"
+                    <input type="text" id="name-input" placeholder="Custom name (empty = node_id)"
                            value="${escapeAttr(devices.displayName(nodeId) === nodeId ? '' : devices.displayName(nodeId))}">
-                    <button type="submit">Premenovať</button>
+                    <button type="submit">Rename</button>
                 </form>
                 <p style="margin-top:14px;">
-                    <button class="secondary" id="btn-remove">Odstrániť zo zoznamu</button>
+                    <button class="secondary" id="btn-remove">Remove from list</button>
                 </p>
             </div>
             <div class="panel event-log dev-only">
-                <h3>Log udalostí</h3>
+                <h3>Event log</h3>
                 <ul id="ev-list"></ul>
             </div>
         </div>
@@ -43,7 +43,7 @@ export function renderDevice(root, nodeId) {
         if (evList) {
             evList.innerHTML = dev.events.length
                 ? dev.events.map(e => `<li>[${new Date(e.ts).toLocaleTimeString()}] ${escapeHtml(e.text)}</li>`).join('')
-                : '<li class="empty">Žiadne udalosti.</li>';
+                : '<li class="empty">No events yet.</li>';
         }
     };
 
@@ -66,23 +66,23 @@ export function renderDevice(root, nodeId) {
 
 function statusPanel(d) {
     const state = d.state || 'unknown';
-    const seen  = d.lastSeen ? new Date(d.lastSeen).toLocaleString() : '–';
-    const info  = d.info || {};
+    const seen = d.lastSeen ? new Date(d.lastSeen).toLocaleString() : '-';
+    const info = d.info || {};
     const gateStatus = d.gateStatus || {};
     const fault = gateStatus.fault || 'none';
     const message = gateStatus.message || '';
-    const wifi  = info.wifi || 'unknown';
-    const ssid  = info.ssid || '';
+    const wifi = info.wifi || 'unknown';
+    const ssid = info.ssid || '';
     const wifiOnline = wifi === 'connected';
-    const wifiLabel  = wifiOnline
-        ? (ssid ? `Pripojené k „${ssid}“` : 'Pripojené')
-        : (wifi === 'disconnected' ? 'Odpojené' : 'Neznáme');
-    const wifiClass  = wifiOnline ? 'on' : (wifi === 'disconnected' ? 'err' : 'off');
+    const wifiLabel = wifiOnline
+        ? (ssid ? `Connected to "${ssid}"` : 'Connected')
+        : (wifi === 'disconnected' ? 'Disconnected' : 'Unknown');
+    const wifiClass = wifiOnline ? 'on' : (wifi === 'disconnected' ? 'err' : 'off');
     const faultClass = fault === 'none' ? 'ok' : 'err';
     return `
-        <h3>Stav</h3>
+        <h3>Status</h3>
         <div class="kv">
-            <div class="k">Stav brány</div><div><span class="state-badge state-${escapeHtml(state)}">${escapeHtml(state)}</span></div>
+            <div class="k">Gate state</div><div><span class="state-badge state-${escapeHtml(state)}">${escapeHtml(state)}</span></div>
             <div class="k">Wi-Fi</div><div><span class="wifi-badge"><span class="dot ${wifiClass}"></span>${escapeHtml(wifiLabel)}</span></div>
             <div class="k">Fault</div><div><span class="fault-badge fault-${faultClass}">${escapeHtml(fault)}</span></div>
             ${message ? `<div class="k">Message</div><div>${escapeHtml(message)}</div>` : ''}
@@ -93,10 +93,10 @@ function statusPanel(d) {
             <div class="k">Firmware</div>  <div>${escapeHtml(info.firmware_version ?? '-')}</div>
             <div class="k">Report</div>    <div>${escapeHtml(formatInterval(info.report_interval_ms))}</div>
             <div class="k dev-only">node_id</div><div class="dev-only">${escapeHtml(d.nodeId)}</div>
-            <div class="k dev-only">MQTT</div>      <div class="dev-only">${escapeHtml(info.mqtt  ?? '–')}</div>
-            <div class="k dev-only">IP</div>        <div class="dev-only">${escapeHtml(info.ip    ?? '–')}</div>
-            <div class="k">RSSI</div>      <div>${escapeHtml(info.rssi  ?? '–')}</div>
-            <div class="k">Naposledy</div> <div>${escapeHtml(seen)}</div>
+            <div class="k dev-only">MQTT</div>      <div class="dev-only">${escapeHtml(info.mqtt ?? '-')}</div>
+            <div class="k dev-only">IP</div>        <div class="dev-only">${escapeHtml(info.ip ?? '-')}</div>
+            <div class="k">RSSI</div>      <div>${escapeHtml(info.rssi ?? '-')}</div>
+            <div class="k">Last seen</div> <div>${escapeHtml(seen)}</div>
         </div>
     `;
 }

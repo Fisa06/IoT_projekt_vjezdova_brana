@@ -1,14 +1,14 @@
-// Device list view + add-device form.
+// Device list and manual node_id add form.
 import { devices } from '../device-store.js';
 import { mqtt } from '../mqtt-client.js';
 
 export function renderMenu(root) {
     root.innerHTML = `
-        <h2 class="section-title">Zariadenia</h2>
+        <h2 class="section-title">Devices</h2>
         <form class="add-device" id="add-form">
-            <input type="text" id="add-input" placeholder="node_id (napr. 6767)" required>
-            <button type="submit">Pridať</button>
-            <button type="button" class="secondary" id="rescan-btn">Vyhľadať</button>
+            <input type="text" id="add-input" placeholder="node_id (for example 6767)" required>
+            <button type="submit">Add</button>
+            <button type="button" class="secondary" id="rescan-btn">Rescan</button>
         </form>
         <div id="device-grid" class="device-grid"></div>
     `;
@@ -18,7 +18,7 @@ export function renderMenu(root) {
     const repaint = () => {
         const items = devices.list();
         if (items.length === 0) {
-            grid.innerHTML = '<p class="empty">Žiadne zariadenia. Pridaj node_id alebo počkaj na auto-discovery cez MQTT.</p>';
+            grid.innerHTML = '<p class="empty">No devices yet. Add a node_id or wait for MQTT auto-discovery.</p>';
             return;
         }
         grid.innerHTML = items.map(deviceCard).join('');
@@ -31,14 +31,14 @@ export function renderMenu(root) {
 
     repaint();
     const unsub = devices.subscribe(repaint);
-
-    // Detach when navigating away.
     window.addEventListener('hashchange', unsub, { once: true });
 
     root.querySelector('#add-form').addEventListener('submit', (e) => {
         e.preventDefault();
         const input = root.querySelector('#add-input');
-        if (devices.addManual(input.value)) input.value = '';
+        if (devices.addManual(input.value)) {
+            input.value = '';
+        }
     });
 
     root.querySelector('#rescan-btn').addEventListener('click', () => {
@@ -48,17 +48,17 @@ export function renderMenu(root) {
 
 function deviceCard(d) {
     const state = d.state || 'unknown';
-    const ip    = d.info?.ip   || '–';
-    const wifi  = d.info?.wifi || 'unknown';
-    const ssid  = d.info?.ssid || '';
+    const ip = d.info?.ip || '-';
+    const wifi = d.info?.wifi || 'unknown';
+    const ssid = d.info?.ssid || '';
     const fault = d.gateStatus?.fault || 'none';
     const faultClass = fault === 'none' ? 'ok' : 'err';
     const wifiOnline = wifi === 'connected';
-    const wifiLabel  = wifiOnline
+    const wifiLabel = wifiOnline
         ? (ssid ? `Wi-Fi: ${ssid}` : 'Online')
-        : (wifi === 'disconnected' ? 'Offline' : 'Neznáme');
-    const wifiClass  = wifiOnline ? 'on' : (wifi === 'disconnected' ? 'err' : 'off');
-    const name  = devices.displayName(d);
+        : (wifi === 'disconnected' ? 'Offline' : 'Unknown');
+    const wifiClass = wifiOnline ? 'on' : (wifi === 'disconnected' ? 'err' : 'off');
+    const name = devices.displayName(d);
     const showId = name !== d.nodeId;
     return `
         <div class="device-card" data-node="${escapeHtml(d.nodeId)}">
