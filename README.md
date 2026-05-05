@@ -6,15 +6,12 @@ This is my solution for project 2, a wireless receiver for a driveway gate. The 
 
 - [Architecture](#architecture)
 - [Technical Solution](#technical-solution)
-- [Assignment Checklist](#assignment-checklist)
-- [Defense Notes](#defense-notes)
 - [Repository Layout](#repository-layout)
 - [Hardware Configuration](#hardware-configuration)
 - [Firmware Behavior](#firmware-behavior)
 - [Firmware Setup](#firmware-setup)
 - [Dashboard Setup](#dashboard-setup)
 - [MQTT Protocol](#mqtt-protocol)
-- [Demo Checklist](#demo-checklist)
 - [Development Commands](#development-commands)
 - [Troubleshooting](#troubleshooting)
 - [Known Limits](#known-limits)
@@ -41,25 +38,6 @@ The transport/application protocol is MQTT over TLS from the ESP32 to the broker
 For the demo I use the ESP32-C6-DevKitM-1 PCB antenna. For a real outdoor installation I would add an outdoor 2.4 GHz Wi-Fi AP/mesh node, an isolated 230 V to low-voltage supply, and a weatherproof box. If the box weakens the signal too much, I would use a board/module with an external antenna connector and an outdoor antenna.
 
 The firmware publishes `device_info` every 5 seconds. This is short on purpose because it makes RSSI and channel changes easy to see during testing. For a real installation this interval could be longer.
-
-## Assignment Checklist
-
-More detail is in [docs/assignment-checklist.md](docs/assignment-checklist.md).
-
-| Requirement from assignment | Where it is covered |
-| --- | --- |
-| Open/close gate over wireless link | MQTT command topic `gate/<id>/cmd` |
-| Two PWM inputs for gate movement | `GATE_PWM_OPEN_GPIO` and `GATE_PWM_CLOSE_GPIO` |
-| End switches for open/closed | GPIO23 and GPIO9 |
-| Obstacle indication | GPIO12, stops movement and retries later |
-| Report every gate state change | retained `gate_status` MQTT message |
-| Periodic radio parameters | `device_info` contains RSSI, SSID and Wi-Fi channel |
-| Device info on startup | `device_info` contains node ID, firmware, manufacturer and technology |
-| Technical choice explanation | this README, section Technical Solution |
-
-## Defense Notes
-
-For oral defense preparation I also keep a more practical Czech/ASCII cheat sheet in [docs/defense-notes.md](docs/defense-notes.md). It maps the assignment points to the implementation, contains the demo order, likely questions and the limitations I should mention honestly.
 
 ## Repository Layout
 
@@ -402,19 +380,6 @@ The `message` field is only present when `fault` is not `none`.
 ```
 
 `device_info` is published after MQTT connects and then periodically. For Wi-Fi it includes RSSI, SSID and channel, which are the radio-link values used for this project.
-
-## Demo Checklist
-
-This is the order I would use when presenting the project:
-
-1. Build and upload the firmware with PlatformIO.
-2. Provision Wi-Fi over BLE after clearing saved credentials with GPIO20.
-3. Open the dashboard and connect it to the MQTT broker.
-4. Send `open`, `close`, and `stop` commands from the dashboard.
-5. Show that the end switches stop the PWM output.
-6. Trigger the obstacle input and show the `obstacle_detected` status.
-7. Press the local GPIO13 button while idle and while moving.
-8. Show `device_info`, mainly RSSI, SSID, Wi-Fi channel, firmware version and manufacturer/VUTID.
 
 ## Development Commands
 
