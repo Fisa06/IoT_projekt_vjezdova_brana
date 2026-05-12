@@ -1,6 +1,6 @@
 # BPC-IoT Project 2 - Gate Controller
 
-This is my solution for project 2, a wireless receiver for a driveway gate. The firmware runs on ESP32-C6 with ESP-IDF/PlatformIO and the small web dashboard is just static HTML/CSS/JS served by nginx. The ESP32 and dashboard talk through an MQTT broker, so there is no extra backend in this repository.
+This is our solution for IoT_Comm class project, a wireless receiver for a driveway gate. The firmware runs on ESP32-C6 with ESP-IDF/PlatformIO and the small web dashboard is just static HTML/CSS/JS served by nginx. The ESP32 and dashboard talk through an MQTT broker, so there is no extra backend in this repository.
 
 ## Contents
 
@@ -29,13 +29,13 @@ The ESP32 publishes retained status messages and listens for commands for its ow
 
 ## Technical Solution
 
-I chose Wi-Fi as the main radio technology. The gate is at a family house, 230 V power is available, but there is no data cable and no outdoor Wi-Fi coverage yet. In this situation adding one outdoor AP or mesh node near the gate is simpler than building a LoRa/NB-IoT solution, and Wi-Fi also gives normal IP connectivity for MQTT/TLS. I am not choosing Wi-Fi only because ESP32-C6 supports it; the installation makes Wi-Fi a reasonable choice.
+We chose Wi-Fi as the main radio technology. There is no usable Wi-Fi signal at the gate at the beginning, but the owner is willing to install the needed hardware. In that situation an outdoor AP or mesh node makes more sense than a single-purpose gateway. The AP can serve the gate controller and it is still useful for normal internet access in the garden or driveway area.
+
+After the gate unit has Wi-Fi, we are not limited to a special radio-specific protocol. MQTT is a straightforward choice here: commands map naturally to topics, retained messages solve the last-known-state problem, TLS is supported on the ESP32 side, and the browser dashboard can use MQTT over secure WebSockets.
 
 BLE is used only for first Wi-Fi setup. This is nicer than hard-coding SSID/password and the user does not have to join a temporary AP from a phone.
 
-The transport/application protocol is MQTT over TLS from the ESP32 to the broker. The dashboard uses MQTT over secure WebSockets because browsers cannot use raw MQTT/TCP directly. MQTT fits this project well because commands, retained state, last will and periodic telemetry all map cleanly to topics.
-
-For the demo I use the ESP32-C6-DevKitM-1 PCB antenna. For a real outdoor installation I would add an outdoor 2.4 GHz Wi-Fi AP/mesh node, an isolated 230 V to low-voltage supply, and a weatherproof box. If the box weakens the signal too much, I would use a board/module with an external antenna connector and an outdoor antenna.
+For the demo we use the ESP32-C6-DevKitM-1 PCB antenna. For a real outdoor installation we would add an outdoor 2.4 GHz Wi-Fi AP/mesh node, an isolated 230 V to low-voltage supply, and a weatherproof box. If the box weakens the signal too much, we would use a board/module with an external antenna connector and an outdoor antenna.
 
 The firmware publishes `device_info` every 5 seconds. This is short on purpose because it makes RSSI and channel changes easy to see during testing. For a real installation this interval could be longer.
 
@@ -407,38 +407,6 @@ web/public/index.html
 web/public/js/
 ```
 
-## Troubleshooting
-
-### `pio` or `platformio` is not found
-
-On this machine, PlatformIO may be available through the local PlatformIO virtual environment:
-
-```powershell
-& 'C:\Users\karel\.platformio\penv\Scripts\pio.exe' run
-```
-
-or:
-
-```powershell
-& 'C:\Users\karel\.platformio\penv\Scripts\platformio.exe' run
-```
-
-### Static Analysis Reports `unusedFunction`
-
-Some ESP-IDF entrypoints and module functions are called by the framework or from other translation units, so Cppcheck may still report `unusedFunction` style warnings even when the build is valid.
-
-Run:
-
-```sh
-pio check
-```
-
-Expected result:
-
-```text
-No defects found
-```
-
 ### MQTT Reply Says `error`
 
 The firmware rejects commands that do not make sense for the current state. Examples:
@@ -453,10 +421,6 @@ This is intentional. Check the `message` field in the reply payload.
 ### MQTT Status Looks Stale
 
 `gate_status` and `device_info` are retained MQTT messages. When a dashboard reconnects, it may immediately receive the last retained state before any new state is published.
-
-### Wi-Fi Logs Mention `ADDBA` or `DELBA`
-
-These are ESP-IDF Wi-Fi stack logs related to 802.11 block acknowledgement negotiation. If Wi-Fi and MQTT stay connected, they are usually informational noise rather than an application problem.
 
 ## Known Limits
 
