@@ -1,5 +1,7 @@
 # BPC-IoT Project 2 - Gate Controller
 
+Project: https://docs.google.com/presentation/d/1_UmpiwXDah2TIMnmW-Au_Bf3NoHLS_TqpbjptC8I-Xc/edit?slide=id.g3e17a4aa97e_0_47#slide=id.g3e17a4aa97e_0_47
+
 This is our solution for IoT_Comm class project, a wireless receiver for a driveway gate. The firmware runs on ESP32-C6 with ESP-IDF/PlatformIO and the small web dashboard is just static HTML/CSS/JS served by nginx. The ESP32 and dashboard talk through an MQTT broker, so there is no extra backend in this repository.
 
 ## Contents
