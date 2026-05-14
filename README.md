@@ -1,5 +1,7 @@
 # IoT projekt — vjazdová brána
 
+Prezentation link:https://docs.google.com/presentation/d/1_UmpiwXDah2TIMnmW-Au_Bf3NoHLS_TqpbjptC8I-Xc/edit?slide=id.g3e17a4aa97e_0_47#slide=id.g3e17a4aa97e_0_47
+
 ESP32-C6 firmware (PlatformIO / ESP-IDF) + webové rozhranie (Plain HTML/JS, nginx
 v Dockeri). Komunikácia cez MQTT-over-WebSocket, žiadny vlastný backend.
 
